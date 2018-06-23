@@ -204,6 +204,7 @@
     <Compile Include="Models\AccountViewModels.cs" />
     <Compile Include="Models\IdentityModels.cs" />
     <Compile Include="Models\ManageViewModels.cs" />
+    <Compile Include="Models\Player_Basic.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Service\DataRetriever.cs" />
     <Compile Include="Startup.cs" />

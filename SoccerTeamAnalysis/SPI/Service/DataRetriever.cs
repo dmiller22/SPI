@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SPI.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -61,19 +62,24 @@ namespace SPI.Service
         }
 
         //Dan - {COMPLETION DATE HERE} - Extracts all base player info from the table on the page read in
-        private static void ExtractPlayerInfo(List<string> players)
+        private static void ExtractPlayerInfo(List<string> playersHtml)
         {
-            int PlayerID, OVR, POT;
-            string name, position;
             string[] stringSeparators = new string[] { "<td" };
-            foreach (string player in players)
-            { 
-                string info = player.Replace("\n", string.Empty);
+            foreach (string playerHtml in playersHtml)
+            {
+                Player_Basic player = new Player_Basic();
+                string info = playerHtml.Replace("\n", string.Empty);
                 info = info.Replace("</td>", string.Empty);
                 string[] playerInfo = info.Split(stringSeparators, StringSplitOptions.None);
                 string startPath = playerInfo[1].Substring(playerInfo[1].IndexOf("href") + 6);
-                PlayerID = ParsePlayerID(startPath.Substring(0, startPath.IndexOf("\"")));
+                player.PlayerID = ParsePlayerID(startPath.Substring(0, startPath.IndexOf("\"")));
 
+                string nameHtml = playerInfo[2].Substring(playerInfo[2].IndexOf("<b>") + 3);
+                player.Name = nameHtml.Substring(0, nameHtml.IndexOf("<"));
+
+                string nationalTeamHtml = playerInfo[2].Substring(playerInfo[2].IndexOf("flags/") + 6);
+                player.NationalTeamID = Convert.ToInt32(nationalTeamHtml.Substring(0, nationalTeamHtml.IndexOf(".")));
+                player.NationalTeam = (NationalTeam)player.NationalTeamID;
                 //Parse rest of info and store in db (once I get a db set up)
             }
         }
@@ -89,7 +95,7 @@ namespace SPI.Service
             return ID;
         }
 
-        //Dan - 06/21/2018 - Reverse a string (used to parse Player ID)
+        //Dan - 06/21/2018 - Reverses a string
         public static string Reverse(string s)
         {
             char[] charArray = s.ToCharArray();

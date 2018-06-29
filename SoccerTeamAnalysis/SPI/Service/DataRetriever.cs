@@ -71,16 +71,59 @@ namespace SPI.Service
                 string info = playerHtml.Replace("\n", string.Empty);
                 info = info.Replace("</td>", string.Empty);
                 string[] playerInfo = info.Split(stringSeparators, StringSplitOptions.None);
+
+                //PlayerID
                 string startPath = playerInfo[1].Substring(playerInfo[1].IndexOf("href") + 6);
                 player.PlayerID = ParsePlayerID(startPath.Substring(0, startPath.IndexOf("\"")));
 
+                //Name
                 string nameHtml = playerInfo[2].Substring(playerInfo[2].IndexOf("<b>") + 3);
                 player.Name = nameHtml.Substring(0, nameHtml.IndexOf("<"));
 
+                //National Team
                 string nationalTeamHtml = playerInfo[2].Substring(playerInfo[2].IndexOf("flags/") + 6);
                 player.NationalTeamID = Convert.ToInt32(nationalTeamHtml.Substring(0, nationalTeamHtml.IndexOf(".")));
                 player.NationalTeam = (NationalTeam)player.NationalTeamID;
-                //Parse rest of info and store in db (once I get a db set up)
+
+                //Club Team
+                string clubTeamHtml = playerInfo[2].Substring(playerInfo[2].IndexOf("all/all/") + 8);
+                player.ClubTeamID = Convert.ToInt32(clubTeamHtml.Substring(0, clubTeamHtml.IndexOf("/")));
+                player.ClubTeam = (ClubTeam)player.ClubTeamID;
+                
+                //Position
+                player.position = playerInfo[3].Substring(playerInfo[3].IndexOf(">"));
+
+                //OVR
+                string ovrHtml = playerInfo[4].Substring(playerInfo[4].IndexOf("<div class=") + 1);
+                int ovrStart = ovrHtml.IndexOf(">");
+                player.OVR = Convert.ToInt32(ovrHtml.Substring(ovrStart + 1, 2));
+
+                //POT
+                string potHtml = playerInfo[5].Substring(playerInfo[5].IndexOf("<div class=") + 1);
+                int potStart = potHtml.IndexOf(">");
+                player.POT = Convert.ToInt32(potHtml.Substring(potStart + 1, 2));
+
+                //AGE
+                player.Age = Convert.ToInt32(playerInfo[7].Substring(playerInfo[7].IndexOf(">") + 1, 2));
+
+                //Contract
+                player.ContractExpiration = Convert.ToInt32(playerInfo[8].Substring(playerInfo[8].IndexOf(">") + 1));
+
+                //SkillMoves
+                player.SkillMoves = Convert.ToInt32(playerInfo[9].Substring(playerInfo[9].IndexOf(">") + 1, 1));
+
+                //Weak Foot
+                player.WeakFoot = Convert.ToInt32(playerInfo[10].Substring(playerInfo[10].IndexOf(">") + 1, 1));
+
+                //Work Rates
+                string defWR = playerInfo[11].Substring(playerInfo[11].IndexOf("<b>") + 3);
+                player.OffensiveWorkrate = playerInfo[11].Substring(playerInfo[11].IndexOf("<b>") + 3, 1);
+                player.DefensiveWorkrate = defWR.Substring(defWR.IndexOf("<b>") + 3, 1);
+
+                //Strong Foot
+                player.StrongFoot = playerInfo[12].Substring(playerInfo[12].IndexOf(">") + 1);
+
+                //Store in db (once I get a db set up)
             }
         }
 

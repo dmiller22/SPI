@@ -1,6 +1,9 @@
 ﻿using SPI.Models;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Net;
 using System.Web;
@@ -16,6 +19,7 @@ namespace SPI.Service
             /* https://www.futwiz.com/en/fifa18/career-mode/players?minrating=40&maxrating=99&leagues[]=19&page=0 */
 
             LeagueID = 19; /* Bundesliga */
+            LeagueID = 39; //MLS
             int pageNum = 0;
             bool MorePlayers = true;
 
@@ -31,15 +35,14 @@ namespace SPI.Service
 
                 content = content.Substring(tbodyStart, tbodyEnd - tbodyStart);
 
-                pageNum++;
-
                 if (content.Length < 10) MorePlayers = false;
 
                 else
                 {
                     ParsePlayerTable(content);
+                    pageNum++;
                 }
-                MorePlayers = false; //Temporary for debugging right now
+                //MorePlayers = false; //Temporary for debugging right now
             }
         }
 
@@ -91,7 +94,7 @@ namespace SPI.Service
                 player.ClubTeam = (ClubTeam)player.ClubTeamID;
                 
                 //Position
-                player.position = playerInfo[3].Substring(playerInfo[3].IndexOf(">"));
+                player.position = playerInfo[3].Substring(playerInfo[3].IndexOf(">") + 1);
 
                 //OVR
                 string ovrHtml = playerInfo[4].Substring(playerInfo[4].IndexOf("<div class=") + 1);
@@ -110,10 +113,16 @@ namespace SPI.Service
                 player.ContractExpiration = Convert.ToInt32(playerInfo[8].Substring(playerInfo[8].IndexOf(">") + 1));
 
                 //SkillMoves
-                player.SkillMoves = Convert.ToInt32(playerInfo[9].Substring(playerInfo[9].IndexOf(">") + 1, 1));
+                int skillStart = playerInfo[9].IndexOf(">");
+                int skillEnd = playerInfo[9].Substring(skillStart).IndexOf("<") + skillStart;
+                string skill = playerInfo[9].Substring(skillStart + 1, skillEnd - skillStart - 1).Trim();
+                player.SkillMoves = Convert.ToInt32(skill);
 
                 //Weak Foot
-                player.WeakFoot = Convert.ToInt32(playerInfo[10].Substring(playerInfo[10].IndexOf(">") + 1, 1));
+                int weakFootStart = playerInfo[10].IndexOf(">");
+                int weakFootEnd = playerInfo[10].Substring(weakFootStart).IndexOf("<") + weakFootStart;
+                string weakfoot = playerInfo[10].Substring(weakFootStart + 1, weakFootEnd - weakFootStart - 1).Trim();
+                player.WeakFoot = Convert.ToInt32(weakfoot);
 
                 //Work Rates
                 string defWR = playerInfo[11].Substring(playerInfo[11].IndexOf("<b>") + 3);
@@ -123,7 +132,11 @@ namespace SPI.Service
                 //Strong Foot
                 player.StrongFoot = playerInfo[12].Substring(playerInfo[12].IndexOf(">") + 1);
 
-                //Store in db (once I get a db set up)
+                //Store in db
+                bool IsNewPlayer = !IsPlayerStored(player.PlayerID);
+
+                StoreNewPlayer(player, IsNewPlayer);
+                
             }
         }
 
@@ -145,7 +158,58 @@ namespace SPI.Service
             Array.Reverse(charArray);
             return new string(charArray);
         }
-    }
 
-    
+        private static bool IsPlayerStored(int PlayerID)
+        {
+            SqlConnection conn = new SqlConnection();
+            DataTable dt = new DataTable(); ;
+            ConnectionStringSettings mySetting = ConfigurationManager.ConnectionStrings["DefaultConnection"];
+            string conString = mySetting.ConnectionString;
+            string commandString = "Player_IsStored";
+            SqlCommand command = new SqlCommand(commandString, conn);
+            command.Parameters.Add(new SqlParameter("@PlayerID", PlayerID));
+            command.CommandType = CommandType.StoredProcedure;
+            conn.ConnectionString = conString;
+            conn.Open();
+            using (SqlDataReader dr = command.ExecuteReader())
+            {
+                dt.Load(dr);
+            }
+            conn.Close();
+
+            return ((int)dt.Rows[0]["Player"] > 0);
+        }
+
+        private static void StoreNewPlayer(Player_Basic player, bool NewPlayer)
+        {
+            SqlConnection conn = new SqlConnection();
+            ConnectionStringSettings mySetting = ConfigurationManager.ConnectionStrings["DefaultConnection"];
+            string conString = mySetting.ConnectionString;
+            string commandString = "PlayerBase_Modify";
+            if (NewPlayer)
+            {
+                commandString = "PlayerBase_Store";
+            }
+            SqlCommand command = new SqlCommand(commandString, conn);
+            command.Parameters.Add(new SqlParameter("@PlayerID", player.PlayerID));
+            command.Parameters.Add(new SqlParameter("@Name", player.Name));
+            command.Parameters.Add(new SqlParameter("@NationalTeamID", player.NationalTeamID));
+            command.Parameters.Add(new SqlParameter("@ClubTeamID", player.ClubTeamID));
+            command.Parameters.Add(new SqlParameter("@Position", player.position));
+            command.Parameters.Add(new SqlParameter("@OVR", player.OVR));
+            command.Parameters.Add(new SqlParameter("@POT", player.POT));
+            command.Parameters.Add(new SqlParameter("@Age", player.Age));
+            command.Parameters.Add(new SqlParameter("@ContractExp", player.ContractExpiration));
+            command.Parameters.Add(new SqlParameter("@Skill", player.SkillMoves));
+            command.Parameters.Add(new SqlParameter("@WeakFoot", player.WeakFoot));
+            command.Parameters.Add(new SqlParameter("@OffWorkRate", player.OffensiveWorkrate));
+            command.Parameters.Add(new SqlParameter("@DefWorkRate", player.DefensiveWorkrate));
+            command.Parameters.Add(new SqlParameter("@StrongFoot", player.StrongFoot));
+            command.CommandType = CommandType.StoredProcedure;
+            conn.ConnectionString = conString;
+            conn.Open();
+            command.ExecuteNonQuery();
+            conn.Close();
+        }
+    }
 }
